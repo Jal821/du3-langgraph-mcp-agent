@@ -336,11 +336,16 @@ the plural `s` comes off now, with `sses`/`shes` kept as the exception for
 "classes" and "dishes". `ches` and `xes` were deliberately *not* added: they
 mangle "caches" and "sizes", where the `e` belongs to the stem.
 
-Two smaller ones, for completeness: `--graph` wrote `graph.png` into whatever
-directory the shell happened to be in rather than next to the code, and when the
+Three smaller ones, for completeness: `--graph` wrote `graph.png` into whatever
+directory the shell happened to be in rather than next to the code; when the
 call-limit middleware stopped a run the answer printed was its internal notice,
 `Model call limits exceeded: run limit (10/10)`, which tells the reader nothing
-about what to do next.
+about what to do next; and running with no `.env` at all buried the "set
+`OPENAI_API_KEY`" message under a nested `TaskGroup` traceback, because the model
+was built inside the MCP session and anyio re-wraps a `SystemExit` raised in
+there. The model is now built before the session opens. That last one only
+surfaced from cloning this repo into a clean directory and running it as a
+stranger would — worth doing before calling anything finished.
 
 Every one of these has a check in `test_tools.py` pinned to the specific failure,
 which is why the count went from 42 to 57.

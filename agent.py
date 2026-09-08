@@ -165,6 +165,12 @@ async def build_agent(verbose: bool = True):
             f"Build it first:  uv run seed_db.py"
         )
 
+    # Built BEFORE the session opens, for the same reason. get_model() exits if
+    # OPENAI_API_KEY is missing, and a SystemExit raised inside the session is
+    # caught by anyio's task group and re-emitted as a traceback with the actual
+    # message buried at the bottom. Out here it prints as the one line it is.
+    model = get_model()
+
     connections = build_connections()
     client = MultiServerMCPClient(connections)
 
@@ -187,7 +193,7 @@ async def build_agent(verbose: bool = True):
             print("MCP web (http):         not configured (no TAVILY_API_KEY)")
 
         agent = create_agent(
-            model=get_model(),
+            model=model,
             tools=tools,
             system_prompt=SYSTEM_PROMPT,
             middleware=[
