@@ -1,0 +1,211 @@
+[
+  {
+    "id": "B-101",
+    "name": "What a language model actually is",
+    "track": "beginners",
+    "level": "beginner",
+    "hours": 2.0,
+    "delivery": "both",
+    "prerequisites": [],
+    "keywords": "llm basics tokens context window hallucination limits",
+    "summary": "How a language model produces text, why it invents facts, and what it can and cannot be trusted with. Sets the expectations the rest of the course depends on."
+  },
+  {
+    "id": "B-102",
+    "name": "Writing a prompt that works",
+    "track": "beginners",
+    "level": "beginner",
+    "hours": 2.5,
+    "delivery": "both",
+    "prerequisites": ["B-101"],
+    "keywords": "prompting instructions examples role context iteration",
+    "summary": "Turning a vague request into an instruction the model can follow. Roles, worked examples, and how to repair an answer instead of starting over."
+  },
+  {
+    "id": "B-103",
+    "name": "Email and everyday writing",
+    "track": "beginners",
+    "level": "beginner",
+    "hours": 2.0,
+    "delivery": "both",
+    "prerequisites": ["B-102"],
+    "keywords": "email replies tone drafting correspondence writing",
+    "summary": "Drafting and shortening email, fixing tone, and answering routine correspondence without sounding like a machine wrote it."
+  },
+  {
+    "id": "B-104",
+    "name": "Reading long documents and contracts",
+    "track": "beginners",
+    "level": "beginner",
+    "hours": 2.5,
+    "delivery": "both",
+    "prerequisites": ["B-102"],
+    "keywords": "documents contracts pdf summarising extraction clauses reading",
+    "summary": "Summarising a long PDF, pulling named clauses out of a contract, and checking the answer against the source instead of trusting it."
+  },
+  {
+    "id": "B-105",
+    "name": "Spreadsheets and small calculations",
+    "track": "beginners",
+    "level": "beginner",
+    "hours": 2.0,
+    "delivery": "both",
+    "prerequisites": ["B-102"],
+    "keywords": "spreadsheet excel formulas tables numbers calculation csv",
+    "summary": "Getting a formula written for you, cleaning a messy table, and why the model must never be asked to do the arithmetic itself."
+  },
+  {
+    "id": "B-106",
+    "name": "Meeting notes and transcription",
+    "track": "beginners",
+    "level": "beginner",
+    "hours": 1.5,
+    "delivery": "both",
+    "prerequisites": ["B-103"],
+    "keywords": "meetings notes transcription recording minutes action items",
+    "summary": "Turning a recording into minutes with decisions and owners, and the consent question you have to settle before recording anyone."
+  },
+  {
+    "id": "B-107",
+    "name": "Images and simple graphics",
+    "track": "beginners",
+    "level": "beginner",
+    "hours": 2.0,
+    "delivery": "both",
+    "prerequisites": ["B-102"],
+    "keywords": "images generation graphics illustration social visuals design",
+    "summary": "Generating usable illustrations for a post or a deck, and where image rights and client expectations start to bite."
+  },
+  {
+    "id": "B-108",
+    "name": "Translation and bilingual work",
+    "track": "beginners",
+    "level": "intermediate",
+    "hours": 1.5,
+    "delivery": "online",
+    "prerequisites": ["B-103"],
+    "keywords": "translation slovak english bilingual localisation proofreading",
+    "summary": "Translating between Slovak and English so it reads as if written, not converted, and proofreading a translation you cannot read yourself."
+  },
+  {
+    "id": "B-109",
+    "name": "What not to paste into a chat window",
+    "track": "beginners",
+    "level": "beginner",
+    "hours": 1.5,
+    "delivery": "both",
+    "prerequisites": ["B-101"],
+    "keywords": "privacy gdpr personal data confidentiality security policy",
+    "summary": "Personal data, client confidentiality and GDPR in practice: what may go in, what may not, and a one-page rule your staff will actually follow."
+  },
+  {
+    "id": "O-201",
+    "name": "Where AI pays for itself in a small company",
+    "track": "owners",
+    "level": "beginner",
+    "hours": 2.0,
+    "delivery": "both",
+    "prerequisites": [],
+    "keywords": "strategy roi assessment opportunity audit process time saved",
+    "summary": "Finding the two or three tasks in your company where AI actually returns hours, and recognising the ones where it will only add noise."
+  },
+  {
+    "id": "O-202",
+    "name": "Setting up a shared team workspace",
+    "track": "owners",
+    "level": "intermediate",
+    "hours": 3.0,
+    "delivery": "both",
+    "prerequisites": ["O-201"],
+    "keywords": "cowork workspace shared team setup collaboration seats onboarding",
+    "summary": "Standing up a shared AI workspace for the whole team: seats, projects, permissions, and who owns what."
+  },
+  {
+    "id": "O-203",
+    "name": "Structuring files so a team can work in them",
+    "track": "owners",
+    "level": "intermediate",
+    "hours": 3.0,
+    "delivery": "both",
+    "prerequisites": ["O-202"],
+    "keywords": "files structure folders knowledge base naming sources wiki documents",
+    "summary": "The three-layer pattern: raw sources stay untouched, a wiki layer holds what was learned, a schema layer holds the rules. Why flat folders stop working at four people."
+  },
+  {
+    "id": "O-204",
+    "name": "Writing the rules your team works by",
+    "track": "owners",
+    "level": "intermediate",
+    "hours": 2.0,
+    "delivery": "both",
+    "prerequisites": ["O-203"],
+    "keywords": "rulebook conventions instructions governance standards playbook",
+    "summary": "Turning house conventions into instructions the tool reads every session, so quality does not depend on who happens to be typing."
+  },
+  {
+    "id": "O-205",
+    "name": "Customer support without losing the customer",
+    "track": "owners",
+    "level": "intermediate",
+    "hours": 2.5,
+    "delivery": "both",
+    "prerequisites": ["O-201"],
+    "keywords": "support tickets customers helpdesk replies escalation service",
+    "summary": "Drafting support replies from your own knowledge base, and the escalation rule that keeps a machine from answering the one question it must not."
+  },
+  {
+    "id": "O-206",
+    "name": "Invoices, receipts and the monthly paperwork",
+    "track": "owners",
+    "level": "intermediate",
+    "hours": 2.5,
+    "delivery": "both",
+    "prerequisites": ["O-201"],
+    "keywords": "invoices receipts accounting bookkeeping paperwork extraction vat admin",
+    "summary": "Reading figures off invoices and receipts into a table your accountant accepts, and checking the total twice because the model cannot add."
+  },
+  {
+    "id": "O-207",
+    "name": "First automation: connecting two tools",
+    "track": "owners",
+    "level": "advanced",
+    "hours": 4.0,
+    "delivery": "both",
+    "prerequisites": ["O-204"],
+    "keywords": "automation workflow integration webhook trigger connect tools n8n",
+    "summary": "Building one working automation end to end, with a trigger, a model step and a written record of what it did."
+  },
+  {
+    "id": "O-208",
+    "name": "A chatbot on your own documents",
+    "track": "owners",
+    "level": "advanced",
+    "hours": 3.5,
+    "delivery": "online",
+    "prerequisites": ["O-203"],
+    "keywords": "chatbot rag retrieval search documents knowledge assistant vector",
+    "summary": "Putting a question-answering assistant on top of your own files, and measuring whether its answers are right before anyone relies on them."
+  },
+  {
+    "id": "O-209",
+    "name": "Sales notes and the client record",
+    "track": "owners",
+    "level": "intermediate",
+    "hours": 2.0,
+    "delivery": "both",
+    "prerequisites": ["O-201"],
+    "keywords": "sales crm leads pipeline notes client record follow up",
+    "summary": "Session notes that write themselves into the client record, so the next conversation starts from what was agreed rather than from memory."
+  },
+  {
+    "id": "O-210",
+    "name": "Teaching the rest of your team",
+    "track": "owners",
+    "level": "advanced",
+    "hours": 2.0,
+    "delivery": "both",
+    "prerequisites": ["O-202", "O-204"],
+    "keywords": "training rollout adoption team change onboarding internal champion",
+    "summary": "Rolling the workspace out past the two people who volunteered, and what to do about the ones who quietly never open it."
+  }
+]

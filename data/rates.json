@@ -1,0 +1,16 @@
+{
+  "currency": "EUR",
+  "hourly_rate": {
+    "beginners": 60.0,
+    "owners": 85.0
+  },
+  "included_headcount": 6,
+  "per_extra_person_per_hour": 4.0,
+  "volume_discount": [
+    { "min_modules": 8, "rate": 0.15 },
+    { "min_modules": 5, "rate": 0.10 }
+  ],
+  "travel_per_km": 0.45,
+  "vat_rate": 0.23,
+  "notes": "Synthetic rate card for homework 3. The hourly rate is charged per group, not per person. Headcount above included_headcount is charged per extra person per hour of training. Travel is billed for the round trip."
+}

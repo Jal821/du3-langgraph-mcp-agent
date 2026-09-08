@@ -1,0 +1,23 @@
+[project]
+name = "du3-langgraph-mcp-agent"
+version = "0.1.0"
+description = "Homework 3 - a ReAct agent on LangGraph whose tools all arrive over MCP"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # The agent itself. langchain 1.x ships create_agent (the ReAct loop) and
+    # the middleware used here as guard rails; langgraph is what it compiles to.
+    "langchain[openai]>=1.3.12",
+    "langgraph>=1.2.8",
+    # The whole point of the exercise: tools are loaded from MCP servers rather
+    # than declared with @tool. This adapter turns MCP tools into LangChain ones.
+    "langchain-mcp-adapters>=0.3.0",
+    # Pulled in by the adapter anyway, named here because mcp_server.py imports
+    # it directly to BE a server, not just to talk to one.
+    "mcp>=1.28",
+    # Wikipedia is reached over its public REST API - no key, no SDK.
+    "httpx>=0.28",
+    # graph.png, so the compiled ReAct graph can be looked at.
+    "pillow>=11.2",
+    "python-dotenv>=1.1",
+]
