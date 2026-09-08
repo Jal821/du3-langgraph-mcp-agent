@@ -17,7 +17,13 @@ def main() -> int:
     modules = catalogue.load_modules()
     print(f"data/modules.json holds {len(modules)} modules")
 
-    result = catalogue.build()
+    try:
+        result = catalogue.build()
+    except RuntimeError as problem:
+        # The database is locked by something else. One sentence and a non-zero
+        # exit, not a traceback into pathlib.
+        print(problem, file=sys.stderr)
+        return 2
     print(f"built {result['path']}")
 
     failures = []

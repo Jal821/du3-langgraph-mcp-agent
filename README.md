@@ -166,7 +166,7 @@ uv run main.py "your question"       # answer once and exit
 uv run main.py --tools               # list the tools loaded over MCP
 uv run main.py --graph               # write graph.png, print the mermaid source
 uv run main.py --quiet "..."         # answer without the trace
-uv run test_tools.py                 # 57 checks, no model and no network
+uv run test_tools.py                 # 68 checks, no model and no network
 ```
 
 The first line of output always says what is actually answering, which matters
@@ -347,8 +347,38 @@ there. The model is now built before the session opens. That last one only
 surfaced from cloning this repo into a clean directory and running it as a
 stranger would — worth doing before calling anything finished.
 
+### A third pass, on the guard rails themselves
+
+Having checked that the agent behaved, the next question was whether the checks
+did. Two did not.
+
+**The price check had a hundred-euro-wide hole in it.** The set of figures an
+answer is allowed to state was harvested from tool results with the same regex
+used on prose — so the `206` in the module id `B-206` became a number a price
+could legitimately match. Over a run that touches the catalogue, every id from
+`B-101` to `O-210` gets harvested, which means any invented total between about
+100 and 211 EUR passed as verified. Tool results are now **parsed and walked**,
+and only actual numeric values count: an id is a string and contributes nothing,
+while hours, rates and totals are numbers and contribute normally. The walk also
+has to unwrap MCP's `[{"type": "text", "text": "<json>"}]` envelope, or every
+genuine price gets flagged instead — which is the failure mode you notice, as
+opposed to this one, which you do not.
+
+**Reseeding while the agent was running crashed.** `seed_db.py` rebuilds the
+database by deleting it first, and Windows will not unlink a file another process
+has open — which is exactly the case when an agent is running in another
+terminal, holding the catalogue through its MCP server. It failed with a raw
+`PermissionError: [WinError 32]` that names the file and not the cause. It now
+says what to do about it and exits 2.
+
+The first of those two is the one worth dwelling on. It is not that the guard
+rail was missing — it was there, it was tested, and the tests passed. It was
+quietly admitting the wrong numbers, and no amount of running the agent would
+have shown that, because the symptom is the *absence* of a warning. Checking a
+check needs its own pass.
+
 Every one of these has a check in `test_tools.py` pinned to the specific failure,
-which is why the count went from 42 to 57.
+which is why the count went from 42 to 68.
 
 ## Verifying it
 
@@ -356,7 +386,7 @@ which is why the count went from 42 to 57.
 uv run test_tools.py
 ```
 
-57 checks, no model, no network, no API key.
+68 checks, no model, no network, no API key.
 
 The price is deliberately **not** verified with the formula that computes it,
 since that would only repeat any mistake. `pricing.quote` works package-wide: it
@@ -394,7 +424,7 @@ OK  a leading zero marks a decimal comma, not a thousands separator
 OK  an invented price is not laundered into the next turn
 OK  the catalogue connection refuses writes  ->  attempt to write a readonly database
 
-57/57 checks passed
+68/68 checks passed
 ```
 
 The price-check test uses the real numbers from the run that exposed the problem,
@@ -418,7 +448,7 @@ model.py         where the LLM comes from, in one place
 catalogue.py     SQLite schema, FTS5 search, the read-only connection
 pricing.py       the deterministic quote arithmetic
 seed_db.py       builds catalogue.sqlite from data/, then verifies the load
-test_tools.py    57 checks, no model and no network
+test_tools.py    68 checks, no model and no network
 visualizer.py    graph.png
 data/            the module catalogue and the rate card
 .env.example     template, no secrets

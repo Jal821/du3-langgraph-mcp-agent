@@ -109,12 +109,70 @@ def as_amount(raw: str) -> float | None:
 
 
 def numbers_in(text: str) -> set[float]:
-    """Every number in a piece of text, however it is punctuated."""
+    """Every number in a piece of PROSE, however it is punctuated.
+
+    For free text - what the user typed - where a number can be written any
+    number of ways. Not for tool results: see numbers_in_payload.
+    """
     found = set()
     for match in NUMBER.finditer(text or ""):
         value = as_amount(match.group(0))
         if value is not None:
             found.add(value)
+    return found
+
+
+def numbers_in_payload(content) -> set[float]:
+    """The numeric VALUES in a tool result - never digits inside a string.
+
+    Reading tool results with the prose regex above was a real hole in the price
+    check. A result mentioning module "B-206" contributed 206.0 to the set of
+    numbers a price is allowed to match, so an invented "206,00 EUR" passed as
+    verified. Over a whole run every id from 101 to 210 got harvested, leaving a
+    hundred-euro-wide band in which any made-up total went unnoticed.
+
+    So the payload is parsed and walked, and only actual numbers count. An id is
+    a string and contributes nothing; hours, rates and totals are numbers and
+    contribute normally.
+
+    MCP wraps a tool's reply as [{"type": "text", "text": "<json>"}], so strings
+    are re-parsed when they contain JSON. Anything unparseable is ignored rather
+    than fed to the regex - a tool result that is not JSON has no prices in it.
+    """
+    found: set[float] = set()
+
+    def walk(node, depth: int = 0) -> None:
+        # The envelope is two levels of JSON-in-string at most; the guard is
+        # against a pathological payload, not against normal nesting.
+        if depth > 12:
+            return
+        if isinstance(node, bool):
+            return  # bools are ints in Python, and are not prices
+        if isinstance(node, (int, float)):
+            found.add(round(float(node), 2))
+        elif isinstance(node, dict):
+            for value in node.values():
+                walk(value, depth + 1)
+        elif isinstance(node, (list, tuple)):
+            for value in node:
+                walk(value, depth + 1)
+        elif isinstance(node, str):
+            stripped = node.strip()
+            if stripped[:1] in ("{", "[") or stripped[:1].isdigit():
+                try:
+                    walk(json.loads(stripped), depth + 1)
+                except (ValueError, TypeError):
+                    pass
+
+    if isinstance(content, str):
+        walk_target = content.strip()
+        try:
+            walk(json.loads(walk_target))
+        except (ValueError, TypeError):
+            walk(walk_target)
+    else:
+        walk(content)
+
     return found
 
 
@@ -179,7 +237,7 @@ async def answer(agent, history: list, quiet: bool, known: set[float]) -> str:
                         if not quiet:
                             report_calls(step, message)
                     elif kind == "ToolMessage":
-                        known |= numbers_in(str(message.content))
+                        known |= numbers_in_payload(message.content)
                         if not quiet:
                             report_result(message)
                     elif kind == "AIMessage" and message.content:

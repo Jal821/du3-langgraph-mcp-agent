@@ -85,7 +85,18 @@ def build(path: Path = DB_PATH) -> dict:
     modules = load_modules()
 
     if path.exists():
-        path.unlink()
+        try:
+            path.unlink()
+        except PermissionError as problem:
+            # Windows refuses to unlink a file another process has open, and the
+            # process holding it is almost always an MCP server started by a
+            # running agent. The raw WinError 32 says nothing about that, so it
+            # is translated into the thing to actually do.
+            raise RuntimeError(
+                f"Cannot rebuild {path.name}: another process has it open. "
+                f"That is usually an agent still running in another terminal - "
+                f"stop it and run this again."
+            ) from problem
 
     connection = sqlite3.connect(path)
     try:

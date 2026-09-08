@@ -405,6 +405,61 @@ check(
     f'0,450 -> {main.as_amount("0,450")}, 1,450 -> {main.as_amount("1,450")}',
 )
 
+# Tool results used to be harvested with the prose regex, which pulled the "206"
+# out of the module id "B-206" and added it to the set of figures a price may
+# match. Over a run that admitted every id from 101 to 210, leaving a
+# hundred-euro band where an invented total passed as verified.
+import json  # noqa: E402
+
+ID_HEAVY = json.dumps(
+    {"modules": [{"id": "B-206", "hours": 2.5}, {"id": "O-201", "hours": 2.0}]}
+)
+from_payload = main.numbers_in_payload(ID_HEAVY)
+check(
+    206.0 not in from_payload and 201.0 not in from_payload and 2.5 in from_payload,
+    "module ids do not enter the known set as numbers",
+    f"harvested {sorted(from_payload)}",
+)
+check(
+    main.unsupported_prices("Total: 206,00 EUR.", from_payload) == [206.0],
+    "a price that merely matches a module id is still flagged",
+    ", ".join(str(v) for v in main.unsupported_prices("Total: 206,00 EUR.", from_payload)),
+)
+
+# MCP hands a tool reply back as [{"type": "text", "text": "<json>"}], so the
+# real numbers are a level of JSON-in-string down. Miss that and every genuine
+# price gets flagged instead.
+ENVELOPE = json.dumps([{"type": "text", "text": json.dumps({"total_incl_vat": 885.6, "id": "B-206"})}])
+through = main.numbers_in_payload(ENVELOPE)
+check(
+    885.6 in through and 206.0 not in through,
+    "a value is found through the MCP envelope and the id in it is not",
+    f"harvested {sorted(through)}",
+)
+
+# The harvester runs on whatever a tool returned, including a tool that failed,
+# so it must never be the thing that raises.
+for junk in ("", "not json at all", "{broken", None, 42, ["a", {"b": 3.5}]):
+    try:
+        main.numbers_in_payload(junk)
+        ok = True
+    except Exception as problem:  # noqa: BLE001
+        ok = False
+    check(ok, f"a payload of {type(junk).__name__} does not raise")
+
+# A real breakdown has to pass in full, or the warning becomes noise nobody reads.
+GENUINE = main.numbers_in_payload(
+    json.dumps({"base_training": 750.0, "headcount_surcharge": 300.0, "discount": 105.0,
+                "vat": 217.35, "total_incl_vat": 1162.35})
+)
+check(
+    main.unsupported_prices(
+        "Base 750,00 €, surcharge 300,00 €, discount -105,00 €, VAT 217,35 €, total 1 162,35 €.",
+        GENUINE,
+    ) == [],
+    "a genuine breakdown passes without a single false flag",
+)
+
 # The check must not treat the agent's own earlier answer as evidence. `known`
 # holds tool and user numbers only; folding replies back in meant an invented
 # price became established fact on the following turn.
@@ -429,6 +484,22 @@ try:
     check(False, "the catalogue connection refuses writes", "the DELETE SUCCEEDED")
 except Exception as problem:
     check("readonly" in str(problem).lower(), "the catalogue connection refuses writes", str(problem))
+
+# Rebuilding while this reader is open is exactly what happens when seed_db.py
+# is run with an agent still going in another terminal. Windows refuses to
+# unlink the file, and a raw WinError 32 says nothing about the cause.
+try:
+    catalogue.build()
+    check(False, "a locked rebuild is refused with an explanation", "the rebuild SUCCEEDED")
+except RuntimeError as problem:
+    check(
+        "another terminal" in str(problem),
+        "a locked rebuild is refused with an explanation",
+        str(problem),
+    )
+except Exception as problem:  # noqa: BLE001
+    check(False, "a locked rebuild is refused with an explanation",
+          f"raised {type(problem).__name__} instead: {problem}")
 
 connection.close()
 
