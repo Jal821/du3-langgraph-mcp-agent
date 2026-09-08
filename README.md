@@ -139,6 +139,10 @@ every currency-marked figure in the answer against that set, and appends a
 warning naming any figure that is not there. Hours and percentages are not
 checked, because those are legitimately recombined.
 
+The set holds tool results and what the user said, and **never the agent's own
+earlier answers** — counting those let an invented figure from turn one pass as
+established fact in turn two, which is written up below.
+
 That last one is the course's own rule — *the model proposes, code decides* —
 applied to the output rather than the input.
 
@@ -162,7 +166,7 @@ uv run main.py "your question"       # answer once and exit
 uv run main.py --tools               # list the tools loaded over MCP
 uv run main.py --graph               # write graph.png, print the mermaid source
 uv run main.py --quiet "..."         # answer without the trace
-uv run test_tools.py                 # 42 checks, no model and no network
+uv run test_tools.py                 # 57 checks, no model and no network
 ```
 
 The first line of output always says what is actually answering, which matters
@@ -296,13 +300,58 @@ ran out before it answered. `missing_prerequisites()` now walks the chain
 transitively and reports it in one error, and the run that used to exhaust the
 budget finishes in seven steps.
 
+### A second pass, hunting rather than waiting
+
+The three above turned up by themselves. These four came out of deliberately
+probing the edges afterwards, and two of them were quietly serious.
+
+**A negative distance was a discount.** `quote(..., delivery="onsite",
+distance_km=-100)` returned `travel: -90.0` and took it off the total. Travel is
+`distance × 2 × rate` with nothing asserting the sign, so a fumbled argument —
+or a model talked into one — knocked 0.90 EUR off per kilometre "travelled".
+Now refused outright rather than clamped to zero, because a negative distance
+means the caller got something wrong and treating it as "next door" hides that.
+
+**The price check laundered the prices it was meant to catch.** `known` — the
+set of figures a price in the answer must trace back to — was rebuilt each turn
+by scanning the whole conversation, and the conversation contains the agent's own
+previous replies. So a total the model invented in turn one was established fact
+by turn two, and the guard rail silently switched itself off over a conversation.
+`known` is now owned by the caller and accumulates from **tool results and user
+messages only**. This was the worst of the batch: the check looked like it was
+working, and the failure only shows up on the second question.
+
+**`0,450` was read as 450.** `as_amount` treats a comma with three digits after
+it as a thousands separator, which is right for `1,450` and wrong for a decimal
+written Slovak-style. It matters because `0.45` is the travel rate per km, so the
+one number most likely to appear that way was the one being misread by a factor
+of a thousand. A thousands group never starts with a lone zero, so that is now
+the discriminator.
+
+**The stemmer over-shot on "es".** Fixing the original file/files bug introduced
+a smaller one: stripping both letters of `es` turned "files" into "fil" and
+"invoices" into "invoic" — short enough to fall below the prefix threshold, so
+they reverted to exact matching and stopped finding the singular at all. Only
+the plural `s` comes off now, with `sses`/`shes` kept as the exception for
+"classes" and "dishes". `ches` and `xes` were deliberately *not* added: they
+mangle "caches" and "sizes", where the `e` belongs to the stem.
+
+Two smaller ones, for completeness: `--graph` wrote `graph.png` into whatever
+directory the shell happened to be in rather than next to the code, and when the
+call-limit middleware stopped a run the answer printed was its internal notice,
+`Model call limits exceeded: run limit (10/10)`, which tells the reader nothing
+about what to do next.
+
+Every one of these has a check in `test_tools.py` pinned to the specific failure,
+which is why the count went from 42 to 57.
+
 ## Verifying it
 
 ```bash
 uv run test_tools.py
 ```
 
-42 checks, no model, no network, no API key.
+57 checks, no model, no network, no API key.
 
 The price is deliberately **not** verified with the formula that computes it,
 since that would only repeat any mistake. `pricing.quote` works package-wide: it
@@ -329,13 +378,18 @@ OK  the 7th person costs one extra-person rate over the package hours  ->  +18.0
 OK  the whole prerequisite chain is reported at once, not one level per call  ->  B-101, B-102, B-103
 OK  an online-only module is refused onsite and named
 OK  100 km onsite is billed as a 200 km round trip  ->  90.0 EUR
+OK  a negative distance is refused, not credited against the total
 OK  "nobody on the team can find the right ..." finds O-203
+OK  "files" and "file" stem alike  ->  file / file
+OK  "caches" stems to "cache"  ->  cache
 OK  FTS5 syntax in the query is neutralised, not executed
 OK  an invented total is caught and a quoted one is not  ->  125.12, 544.0
 OK  numbers without a currency marker are not treated as prices
+OK  a leading zero marks a decimal comma, not a thousands separator
+OK  an invented price is not laundered into the next turn
 OK  the catalogue connection refuses writes  ->  attempt to write a readonly database
 
-42/42 checks passed
+57/57 checks passed
 ```
 
 The price-check test uses the real numbers from the run that exposed the problem,
@@ -359,7 +413,7 @@ model.py         where the LLM comes from, in one place
 catalogue.py     SQLite schema, FTS5 search, the read-only connection
 pricing.py       the deterministic quote arithmetic
 seed_db.py       builds catalogue.sqlite from data/, then verifies the load
-test_tools.py    42 checks, no model and no network
+test_tools.py    57 checks, no model and no network
 visualizer.py    graph.png
 data/            the module catalogue and the rate card
 .env.example     template, no secrets

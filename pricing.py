@@ -119,6 +119,13 @@ def quote(
     if delivery not in ("online", "onsite"):
         return {"error": 'Delivery must be either "online" or "onsite".'}
 
+    # A negative distance would be billed as a negative travel line and quietly
+    # discount the whole offer. Rejected rather than clamped to zero, because a
+    # negative distance means the caller got something wrong and silently
+    # treating it as "next door" hides that.
+    if distance_km < 0:
+        return {"error": "Distance cannot be negative. Give the one-way distance in km, or 0 for online."}
+
     # A module marked online-only cannot be delivered in a room. Reported with
     # the ids so the model can either drop them or switch the whole package to
     # online, rather than guessing which.

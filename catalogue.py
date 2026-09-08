@@ -173,7 +173,19 @@ def stem(term: str) -> str:
     """
     if len(term) > 5 and term.endswith(("ing", "ies")):
         term = term[:-3]
-    elif len(term) > 4 and term.endswith(("ed", "es")):
+    # "classes", "dishes": the base word ends in a sibilant and takes "es" as
+    # the whole plural ending, so both letters go. Deliberately just these two
+    # patterns - adding "ches" or "zes" starts mangling words like "caches" and
+    # "sizes", where the "e" belongs to the stem.
+    elif len(term) > 5 and term.endswith(("sses", "shes")):
+        term = term[:-2]
+    # Everywhere else the "e" is the stem's own and only the plural "s" goes.
+    # Dropping both over-stemmed: "files" became "fil" and "invoices" became
+    # "invoic", which are then too short to search as a prefix, so they fell
+    # back to an exact match and stopped finding the singular at all.
+    elif len(term) > 4 and term.endswith("es"):
+        term = term[:-1]
+    elif len(term) > 4 and term.endswith("ed"):
         term = term[:-2]
     elif len(term) > 3 and term.endswith("s") and not term.endswith("ss"):
         term = term[:-1]

@@ -14,6 +14,7 @@ import asyncio
 import json
 import re
 import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
 from langgraph.errors import GraphRecursionError
@@ -80,7 +81,11 @@ def as_amount(raw: str) -> float | None:
     The model answers in the user's language, so the same amount arrives as
     "1029.51", "1 029,51" or "1.029,51" depending on the sentence it is in.
     """
-    text = raw.strip().replace(" ", "").replace(" ", "")
+    # Ordinary, non-breaking, narrow-no-break and thin spaces all turn up as
+    # thousands separators, depending on who rendered the number.
+    text = raw.strip()
+    for space in (" ", " ", " ", " "):
+        text = text.replace(space, "")
     if not text:
         return None
     # Whichever separator comes last is the decimal one.
@@ -90,9 +95,13 @@ def as_amount(raw: str) -> float | None:
         else:
             text = text.replace(",", "")
     elif "," in text:
-        # A comma with exactly three digits after it is a thousands separator.
+        # A comma with exactly three digits after it is USUALLY a thousands
+        # separator - but not when what precedes it is a lone zero or starts
+        # with one. "0,450" is a decimal wherever it is written that way, and
+        # reading it as thousands turned 0.45 EUR per km into 450.
         head, _, tail = text.rpartition(",")
-        text = f"{head}{tail}" if len(tail) == 3 and head else text.replace(",", ".")
+        thousands = len(tail) == 3 and head and not head.startswith("0")
+        text = f"{head}{tail}" if thousands else text.replace(",", ".")
     try:
         return round(float(text), 2)
     except ValueError:
@@ -137,24 +146,23 @@ def unsupported_prices(final: str, known: set[float]) -> list[float]:
     )
 
 
-async def answer(agent, history: list, quiet: bool) -> str:
+async def answer(agent, history: list, quiet: bool, known: set[float]) -> str:
     """Run one turn through the agent, printing the trace as it streams.
 
     The full history goes in every time. create_agent keeps no memory between
     invocations - each call is a fresh state - so a follow-up question like "and
     onsite?" only works because the previous turns are passed back in.
+
+    `known` is owned by the caller and accumulates across turns, because a
+    figure quoted in turn one is legitimately restated in turn three. It holds
+    only numbers that came out of a TOOL or in from the USER. Earlier answers
+    are deliberately excluded: this set used to be rebuilt by scanning the whole
+    history, which included the agent's own previous replies, so a price the
+    model invented in one turn was treated as established fact in the next - the
+    check laundered exactly the thing it exists to catch.
     """
     step = 0
     final = ""
-
-    # Everything the tools returned, plus everything the user themselves said.
-    # A price in the answer has to trace back to one of these.
-    known: set[float] = set()
-    for message in history:
-        content = message if isinstance(message, str) else (
-            message.get("content") if isinstance(message, dict) else getattr(message, "content", "")
-        )
-        known |= numbers_in(str(content))
 
     try:
         async for chunk in agent.astream(
@@ -193,6 +201,18 @@ async def answer(agent, history: list, quiet: bool) -> str:
             f"{MAX_MODEL_CALLS}-call limit; try a narrower question."
         )
 
+    # When ModelCallLimitMiddleware ends a run it puts its own notice in as the
+    # final message - "Model call limits exceeded: run limit (10/10)". That is
+    # the right thing for it to do, but it is internal wording, and printing it
+    # as the ANSWER tells the reader nothing about what to do next.
+    if final.strip().lower().startswith("model call limit"):
+        return (
+            f"The agent used all {MAX_MODEL_CALLS} of its model calls without "
+            f"finishing the offer, so it was stopped rather than left to loop. "
+            f"The trace above shows where it went. Narrow the question - one "
+            f"client, one delivery mode - or raise MAX_MODEL_CALLS in agent.py."
+        )
+
     invented = unsupported_prices(final, known)
     if invented:
         # Appended to the answer rather than raised. The offer is still mostly
@@ -216,7 +236,7 @@ async def run_once(question: str, quiet: bool) -> None:
     async with build_agent() as (agent, _tools):
         print(f"\nQUESTION:\n  {question}\n")
         history = [{"role": "user", "content": question}]
-        reply = await answer(agent, history, quiet)
+        reply = await answer(agent, history, quiet, numbers_in(question))
         print("ANSWER:")
         print(reply)
 
@@ -229,6 +249,9 @@ async def run_interactive(quiet: bool) -> None:
             "Follow-up questions keep the context. Ctrl+C or 'quit' to leave.\n"
         )
         history: list = []
+        # Carried across turns: numbers the tools returned and numbers the user
+        # gave. Never anything the agent itself wrote. See answer().
+        known: set[float] = set()
         while True:
             try:
                 question = input("You: ").strip()
@@ -242,9 +265,10 @@ async def run_interactive(quiet: bool) -> None:
                 return
 
             history.append({"role": "user", "content": question})
+            known |= numbers_in(question)
             print()
             try:
-                reply = await answer(agent, history, quiet)
+                reply = await answer(agent, history, quiet, known)
             except Exception as problem:
                 # One failed question ends that question, not the session.
                 print(f"That question failed: {problem}\n")
@@ -265,9 +289,13 @@ async def show_tools() -> None:
 
 async def show_graph() -> None:
     """Write graph.png and print the mermaid source it was drawn from."""
+    # Next to this file, not into the current directory. Run from anywhere else
+    # and a bare "graph.png" would drop the picture wherever the shell happened
+    # to be and leave the committed one untouched.
+    target = Path(__file__).parent / "graph.png"
     async with build_agent() as (agent, _tools):
-        wrote = visualize(agent, "graph.png")
-        print("\nwrote graph.png" if wrote else "\ncould not write graph.png (needs network)")
+        wrote = visualize(agent, str(target))
+        print(f"\nwrote {target}" if wrote else "\ncould not write graph.png (needs network)")
         print("\n" + mermaid(agent))
 
 

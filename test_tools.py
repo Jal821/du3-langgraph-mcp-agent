@@ -229,6 +229,15 @@ check(
     f"{same_online.get('total_incl_vat')} EUR",
 )
 
+# A negative distance used to be billed as a NEGATIVE travel line, quietly
+# discounting the whole offer by 0.90 EUR per km "travelled".
+negative = pricing.quote(package("O-201"), 4, "onsite", -100.0, RATES)
+check(
+    "error" in negative and "negative" in negative["error"].lower(),
+    "a negative distance is refused, not credited against the total",
+    negative.get("error", f"travel={negative.get('travel')}"),
+)
+
 too_many = pricing.quote(package("B-101"), pricing.MAX_GROUP_SIZE + 1, "online", 0.0, RATES)
 check(
     "error" in too_many and "two separate groups" in too_many["error"],
@@ -293,6 +302,41 @@ for query, expected_id in SEARCHES:
     ids = [m["id"] for m in found]
     check(expected_id in ids, f'"{query[:38]}..." finds {expected_id}', ", ".join(ids) or "nothing")
 
+# The stemmer over-shot on "es": "files" became "fil" and "invoices" became
+# "invoic", both too short to search as a prefix, so they fell back to an exact
+# match and stopped finding the singular. A plural and its singular have to
+# reach the same prefix.
+for plural, singular in [("files", "file"), ("invoices", "invoice"), ("notes", "note")]:
+    check(
+        catalogue.stem(plural) == catalogue.stem(singular) == singular,
+        f'"{plural}" and "{singular}" stem alike',
+        f"{catalogue.stem(plural)} / {catalogue.stem(singular)}",
+    )
+
+# And the words where the "e" really is part of the plural ending, or part of
+# the stem, must not be mangled either.
+for word, expected_stem in [
+    ("classes", "class"),
+    ("dishes", "dish"),
+    ("business", "business"),
+    ("process", "process"),
+    ("caches", "cache"),
+]:
+    check(
+        catalogue.stem(word) == expected_stem,
+        f'"{word}" stems to "{expected_stem}"',
+        catalogue.stem(word),
+    )
+
+# Searching for either spelling has to find the module, in both directions.
+for query in ("file", "files", "invoice", "invoices"):
+    ids = [m["id"] for m in catalogue.search(connection, query=query, limit=5)]
+    check(
+        bool(ids),
+        f'"{query}" matches something either way round',
+        ", ".join(ids) or "nothing",
+    )
+
 # A sentence full of FTS5 syntax must be treated as words, not as a query
 # expression. If the sanitiser leaks, this raises instead of returning rows.
 try:
@@ -350,6 +394,27 @@ check(
 check(
     main.as_amount("1 029,51") == main.as_amount("1,029.51") == main.as_amount("1.029,51") == 1029.51,
     "an amount reads the same in Slovak, English and German punctuation",
+)
+
+# "0,450" was read as 450: the three-digits-after-the-comma rule fired on what
+# is unambiguously a decimal, because no thousands group ever starts with a
+# lone zero. It mattered because it is how the travel rate gets written.
+check(
+    main.as_amount("0,450") == 0.45 and main.as_amount("1,450") == 1450.0,
+    "a leading zero marks a decimal comma, not a thousands separator",
+    f'0,450 -> {main.as_amount("0,450")}, 1,450 -> {main.as_amount("1,450")}',
+)
+
+# The check must not treat the agent's own earlier answer as evidence. `known`
+# holds tool and user numbers only; folding replies back in meant an invented
+# price became established fact on the following turn.
+carried = {100.0}
+first_turn = main.unsupported_prices("The total is 999,99 EUR.", carried)
+second_turn = main.unsupported_prices("As I said, 999,99 EUR.", carried)
+check(
+    first_turn == [999.99] and second_turn == [999.99],
+    "an invented price is not laundered into the next turn",
+    f"turn 1 {first_turn}, turn 2 {second_turn}",
 )
 
 # ---------------------------------------------------------------------------
